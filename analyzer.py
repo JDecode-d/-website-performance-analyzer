@@ -1,5 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
+import time
 
 def fetch_website(url):
     """Fetch a website and return its HTML content."""
@@ -79,7 +80,33 @@ def check_seo_issues(response, url):
         for issue in issues:
             print(issue)
     else:
-        print("✅ No major SEO issues found")        
+        print("✅ No major SEO issues found")
+
+def measure_performance(response):
+    """Measure page load performance."""
+    print("\n=== PERFORMANCE ANALYSIS ===")
+    
+    # Page size
+    page_size_kb = len(response.content) / 1024
+    print(f"Page size: {page_size_kb:.2f} KB")
+    
+    if page_size_kb > 1000:
+        print("⚠️  Page is very large (>1MB), may load slowly on mobile")
+    elif page_size_kb > 500:
+        print("⚠️  Page is somewhat large (>500KB)")
+    else:
+        print("✅ Page size is reasonable")
+    
+    # Response time (already measured during fetch)
+    load_time = response.elapsed.total_seconds()
+    print(f"Server response time: {load_time:.2f} seconds")
+    
+    if load_time > 3:
+        print("❌ Very slow response time (>3s)")
+    elif load_time > 1:
+        print("⚠️  Slow response time (>1s)")
+    else:
+        print("✅ Fast response time")
 
 # Test it
 if __name__ == "__main__":
@@ -90,8 +117,8 @@ if __name__ == "__main__":
     
     if response:
         print(f"Success! Status Code: {response.status_code}")
-        print(f"Page size: {len(response.content)} bytes")
         analyze_basic_info(response)
         check_seo_issues(response, url)
+        measure_performance(response)
     else:
         print("Failed to fetch website")
