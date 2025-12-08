@@ -155,6 +155,42 @@ def check_broken_links(soup, base_url):
     
     return "\n".join(output)
 
+def analyze_images(soup):
+    """Analyze image optimization issues."""
+    output = ["\n=== IMAGE ANALYSIS ==="]
+    
+    images = soup.find_all('img')
+    output.append(f"Total images: {len(images)}")
+    
+    if len(images) == 0:
+        output.append("ℹ️  No images found on page")
+        return "\n".join(output)
+    
+    issues = []
+    
+    # Check for missing alt text
+    no_alt = [img for img in images if not img.get('alt')]
+    if no_alt:
+        issues.append(f"⚠️  {len(no_alt)} images missing alt text (accessibility & SEO issue)")
+    
+    # Check for missing width/height attributes
+    no_dimensions = [img for img in images if not (img.get('width') and img.get('height'))]
+    if no_dimensions:
+        issues.append(f"⚠️  {len(no_dimensions)} images missing width/height (causes layout shift)")
+    
+    # Check for external images
+    external_images = [img for img in images if img.get('src', '').startswith('http')]
+    if external_images:
+        issues.append(f"ℹ️  {len(external_images)} images loaded from external sources")
+    
+    # Report findings
+    if issues:
+        output.extend(issues)
+    else:
+        output.append("✅ No major image issues found")
+    
+    return "\n".join(output)
+
 def save_report(url, report_content):
     """Save analysis report to a text file."""
     # Create reports directory if it doesn't exist
@@ -207,6 +243,7 @@ if __name__ == "__main__":
         report.append(check_seo_issues(response, url))
         report.append(measure_performance(response))
         report.append(check_broken_links(soup, url))
+        report.append(analyze_images(soup))
         
         report.append("\n" + "=" * 50)
         report.append("Analysis complete!")
