@@ -109,6 +109,44 @@ def measure_performance(response):
     else:
         print("✅ Fast response time")
 
+def check_broken_links(soup, base_url):
+    """Check for broken internal links."""
+    print("\n=== LINK ANALYSIS ===")
+    
+    links = soup.find_all('a', href=True)
+    print(f"Total links found: {len(links)}")
+    
+    # Separate internal and external links
+    internal_links = []
+    external_links = []
+    
+    for link in links:
+        href = link['href']
+        
+        # Skip anchors, javascript, mailto, tel
+        if href.startswith(('#', 'javascript:', 'mailto:', 'tel:')):
+            continue
+        
+        # Determine if internal or external
+        if href.startswith('http'):
+            if base_url in href:
+                internal_links.append(href)
+            else:
+                external_links.append(href)
+        else:
+            # Relative links are internal
+            internal_links.append(href)
+    
+    print(f"Internal links: {len(internal_links)}")
+    print(f"External links: {len(external_links)}")
+    
+    # Check for common issues
+    if len(internal_links) == 0:
+        print("⚠️  No internal links found - poor site structure")
+    
+    if len(external_links) > len(internal_links) * 2:
+        print("⚠️  Too many external links compared to internal (may hurt SEO)")    
+
 # Test it
 if __name__ == "__main__":
     # Check if URL was provided
@@ -133,6 +171,9 @@ if __name__ == "__main__":
         analyze_basic_info(response)
         check_seo_issues(response, url)
         measure_performance(response)
+         # Parse HTML for link checking
+        soup = BeautifulSoup(response.content, 'html.parser')
+        check_broken_links(soup, url)
         print("\n" + "=" * 50)
         print("Analysis complete!")
     else:
