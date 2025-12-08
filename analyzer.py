@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import time
+import sys
 
 def fetch_website(url):
     """Fetch a website and return its HTML content."""
@@ -110,15 +111,30 @@ def measure_performance(response):
 
 # Test it
 if __name__ == "__main__":
-    url = "https://www.wikipedia.org"
-    print(f"Fetching {url}...")
+    # Check if URL was provided
+    if len(sys.argv) < 2:
+        print("Usage: python analyzer.py <url>")
+        print("Example: python analyzer.py https://example.com")
+        sys.exit(1)
+    
+    url = sys.argv[1]
+    
+    # Add https:// if missing
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+    
+    print(f"Analyzing: {url}")
+    print("=" * 50)
     
     response = fetch_website(url)
     
     if response:
-        print(f"Success! Status Code: {response.status_code}")
+        print(f"\n✅ Successfully fetched website (Status: {response.status_code})")
         analyze_basic_info(response)
         check_seo_issues(response, url)
         measure_performance(response)
+        print("\n" + "=" * 50)
+        print("Analysis complete!")
     else:
-        print("Failed to fetch website")
+        print("\n❌ Failed to analyze website")
+        sys.exit(1)
