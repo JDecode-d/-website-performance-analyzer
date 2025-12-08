@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import sys
+from datetime import datetime
 
 def fetch_website(url):
     """Fetch a website and return its HTML content."""
@@ -30,12 +31,14 @@ def analyze_basic_info(response):
     images = soup.find_all('img')
     links = soup.find_all('a')
     
-    # Print report
-    print("\n=== BASIC ANALYSIS ===")
-    print(f"Title: {title_text}")
-    print(f"Headings (H1-H3): {len(headings)}")
-    print(f"Images: {len(images)}")
-    print(f"Links: {len(links)}")
+    # Build report string
+    output = ["\n=== BASIC ANALYSIS ==="]
+    output.append(f"Title: {title_text}")
+    output.append(f"Headings (H1-H3): {len(headings)}")
+    output.append(f"Images: {len(images)}")
+    output.append(f"Links: {len(links)}")
+    
+    return "\n".join(output)
 
 def check_seo_issues(response, url):
     """Check for common SEO problems."""
@@ -75,46 +78,49 @@ def check_seo_issues(response, url):
     if images_without_alt:
         issues.append(f"⚠️  {len(images_without_alt)} images missing alt text")
     
-    # Print results
-    print("\n=== SEO ANALYSIS ===")
+    # Build report
+    output = ["\n=== SEO ANALYSIS ==="]
     if issues:
-        for issue in issues:
-            print(issue)
+        output.extend(issues)
     else:
-        print("✅ No major SEO issues found")
+        output.append("✅ No major SEO issues found")
+    
+    return "\n".join(output)
 
 def measure_performance(response):
     """Measure page load performance."""
-    print("\n=== PERFORMANCE ANALYSIS ===")
+    output = ["\n=== PERFORMANCE ANALYSIS ==="]
     
     # Page size
     page_size_kb = len(response.content) / 1024
-    print(f"Page size: {page_size_kb:.2f} KB")
+    output.append(f"Page size: {page_size_kb:.2f} KB")
     
     if page_size_kb > 1000:
-        print("⚠️  Page is very large (>1MB), may load slowly on mobile")
+        output.append("⚠️  Page is very large (>1MB), may load slowly on mobile")
     elif page_size_kb > 500:
-        print("⚠️  Page is somewhat large (>500KB)")
+        output.append("⚠️  Page is somewhat large (>500KB)")
     else:
-        print("✅ Page size is reasonable")
+        output.append("✅ Page size is reasonable")
     
-    # Response time (already measured during fetch)
+    # Response time
     load_time = response.elapsed.total_seconds()
-    print(f"Server response time: {load_time:.2f} seconds")
+    output.append(f"Server response time: {load_time:.2f} seconds")
     
     if load_time > 3:
-        print("❌ Very slow response time (>3s)")
+        output.append("❌ Very slow response time (>3s)")
     elif load_time > 1:
-        print("⚠️  Slow response time (>1s)")
+        output.append("⚠️  Slow response time (>1s)")
     else:
-        print("✅ Fast response time")
+        output.append("✅ Fast response time")
+    
+    return "\n".join(output)
 
 def check_broken_links(soup, base_url):
     """Check for broken internal links."""
-    print("\n=== LINK ANALYSIS ===")
+    output = ["\n=== LINK ANALYSIS ==="]
     
     links = soup.find_all('a', href=True)
-    print(f"Total links found: {len(links)}")
+    output.append(f"Total links found: {len(links)}")
     
     # Separate internal and external links
     internal_links = []
@@ -137,15 +143,36 @@ def check_broken_links(soup, base_url):
             # Relative links are internal
             internal_links.append(href)
     
-    print(f"Internal links: {len(internal_links)}")
-    print(f"External links: {len(external_links)}")
+    output.append(f"Internal links: {len(internal_links)}")
+    output.append(f"External links: {len(external_links)}")
     
     # Check for common issues
     if len(internal_links) == 0:
-        print("⚠️  No internal links found - poor site structure")
+        output.append("⚠️  No internal links found - poor site structure")
     
     if len(external_links) > len(internal_links) * 2:
-        print("⚠️  Too many external links compared to internal (may hurt SEO)")    
+        output.append("⚠️  Too many external links compared to internal (may hurt SEO)")
+    
+    return "\n".join(output)
+
+def save_report(url, report_content):
+    """Save analysis report to a text file."""
+    # Create reports directory if it doesn't exist
+    import os
+    if not os.path.exists('reports'):
+        os.makedirs('reports')
+    
+    # Generate filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    domain = url.replace('https://', '').replace('http://', '').split('/')[0]
+    filename = f"reports/{domain}_{timestamp}.txt"
+    
+    # Write report
+    with open(filename, 'w', encoding='utf-8') as f:
+        f.write(report_content)
+    
+    print(f"\n📄 Report saved to: {filename}")
+    return filename    
 
 # Test it
 if __name__ == "__main__":
@@ -161,21 +188,38 @@ if __name__ == "__main__":
     if not url.startswith(('http://', 'https://')):
         url = 'https://' + url
     
-    print(f"Analyzing: {url}")
-    print("=" * 50)
+    # Build report content
+    report = []
+    report.append(f"WEBSITE ANALYSIS REPORT")
+    report.append(f"Analyzed: {url}")
+    report.append(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    report.append("=" * 50)
     
     response = fetch_website(url)
     
     if response:
-        print(f"\n✅ Successfully fetched website (Status: {response.status_code})")
-        analyze_basic_info(response)
-        check_seo_issues(response, url)
-        measure_performance(response)
-         # Parse HTML for link checking
+        report.append(f"\n✅ Successfully fetched website (Status: {response.status_code})")
+        
+        # Run analysis and collect results
         soup = BeautifulSoup(response.content, 'html.parser')
-        check_broken_links(soup, url)
-        print("\n" + "=" * 50)
-        print("Analysis complete!")
+        
+        report.append(analyze_basic_info(response))
+        report.append(check_seo_issues(response, url))
+        report.append(measure_performance(response))
+        report.append(check_broken_links(soup, url))
+        
+        report.append("\n" + "=" * 50)
+        report.append("Analysis complete!")
+        
+        # Join all report sections
+        full_report = "\n".join(report)
+        
+        # Print to screen
+        print(full_report)
+        
+        # Save to file
+        save_report(url, full_report)
+        
     else:
         print("\n❌ Failed to analyze website")
         sys.exit(1)
