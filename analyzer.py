@@ -3,6 +3,58 @@ from bs4 import BeautifulSoup
 import time
 import sys
 from datetime import datetime
+from colorama import init, Fore, Style
+
+# Initialize colorama
+init(autoreset=True)
+
+def colorize(text, color_type):
+    """Add color to text based on issue severity."""
+    if '❌' in text or 'Very slow' in text or 'Missing' in text:
+        return Fore.RED + text + Style.RESET_ALL
+    elif '⚠️' in text or 'too short' in text or 'too long' in text:
+        return Fore.YELLOW + text + Style.RESET_ALL
+    elif '✅' in text:
+        return Fore.GREEN + text + Style.RESET_ALL
+    elif 'ℹ️' in text:
+        return Fore.CYAN + text + Style.RESET_ALL
+    else:
+        return text
+
+def calculate_score(report_text):
+    """Calculate overall performance score based on issues found."""
+    score = 100
+    
+    # Count issue types
+    critical_issues = report_text.count('❌')
+    warnings = report_text.count('⚠️')
+    successes = report_text.count('✅')
+    
+    # Deduct points
+    score -= (critical_issues * 15)  # -15 per critical issue
+    score -= (warnings * 5)           # -5 per warning
+    
+    # Don't go below 0
+    score = max(0, score)
+    
+    # Determine grade
+    if score >= 90:
+        grade = "A"
+        color = Fore.GREEN
+    elif score >= 75:
+        grade = "B"
+        color = Fore.LIGHTGREEN_EX
+    elif score >= 60:
+        grade = "C"
+        color = Fore.YELLOW
+    elif score >= 40:
+        grade = "D"
+        color = Fore.LIGHTYELLOW_EX
+    else:
+        grade = "F"
+        color = Fore.RED
+    
+    return score, grade, color, critical_issues, warnings, successes
 
 def fetch_website(url):
     """Fetch a website and return its HTML content."""
@@ -235,7 +287,6 @@ if __name__ == "__main__":
     report.append(f"WEBSITE ANALYSIS REPORT")
     report.append(f"Analyzed: {url}")
     report.append(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    report.append("=" * 50)
     
     response = fetch_website(url)
     
@@ -252,13 +303,26 @@ if __name__ == "__main__":
         report.append(analyze_images(soup))
         
         report.append("\n" + "=" * 50)
-        report.append("Analysis complete!")
         
         # Join all report sections
         full_report = "\n".join(report)
         
-        # Print to screen
-        print(full_report)
+        # Calculate score
+        score, grade, color, critical, warnings, successes = calculate_score(full_report)
+        
+        # Add score summary to beginning
+        score_summary = [
+            "=" * 50,
+            f"OVERALL SCORE: {score}/100 (Grade: {grade})",
+            f"Critical Issues: {critical} | Warnings: {warnings} | Passed: {successes}",
+            "=" * 50
+        ]
+        
+        full_report = "\n".join(score_summary) + "\n" + full_report + "\nAnalysis complete!"
+        
+        # Print with colors
+        for line in full_report.split('\n'):
+            print(colorize(line, None))
         
         # Save to file
         save_report(url, full_report)
