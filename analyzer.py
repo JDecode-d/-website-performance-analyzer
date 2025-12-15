@@ -56,6 +56,38 @@ def calculate_score(report_text):
     
     return score, grade, color, critical_issues, warnings, successes
 
+def extract_priority_issues(report_text):
+    """Extract and prioritize issues from report."""
+    lines = report_text.split('\n')
+    
+    critical = []
+    warnings = []
+    
+    for line in lines:
+        if '❌' in line:
+            critical.append(line.strip())
+        elif '⚠️' in line:
+            warnings.append(line.strip())
+    
+    # Build priority section
+    priority_report = ["\n🚨 PRIORITY ISSUES (Fix These First)"]
+    priority_report.append("=" * 50)
+    
+    if critical:
+        priority_report.append("\nCRITICAL:")
+        priority_report.extend(critical)
+    
+    if warnings:
+        priority_report.append("\nWARNINGS:")
+        priority_report.extend(warnings)
+    
+    if not critical and not warnings:
+        priority_report.append("\n✅ No issues found - site looks good!")
+    
+    priority_report.append("")
+    
+    return "\n".join(priority_report)
+
 def fetch_website(url):
     """Fetch a website and return its HTML content."""
     headers = {
@@ -318,7 +350,11 @@ if __name__ == "__main__":
             "=" * 50
         ]
         
-        full_report = "\n".join(score_summary) + "\n" + full_report + "\nAnalysis complete!"
+        # Extract priority issues
+        priority_section = extract_priority_issues(full_report)
+        
+        # Combine: score + priority issues + full report
+        full_report = "\n".join(score_summary) + priority_section + "\n" + full_report + "\nAnalysis complete!"
         
         # Print with colors
         for line in full_report.split('\n'):
