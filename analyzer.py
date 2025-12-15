@@ -104,8 +104,29 @@ def fetch_website(url):
         response = requests.get(url, headers=headers, timeout=30, allow_redirects=True)
         response.raise_for_status()
         return response
+    except requests.exceptions.Timeout:
+        print(f"\n❌ Error: Site took too long to respond (>30 seconds)")
+        print("   Possible causes: Slow server, heavy traffic, or connectivity issues")
+        return None
+    except requests.exceptions.ConnectionError:
+        print(f"\n❌ Error: Could not connect to {url}")
+        print("   Possible causes: Site is down, DNS issues, or network problems")
+        return None
+    except requests.exceptions.HTTPError as e:
+        print(f"\n❌ Error: HTTP {e.response.status_code} - {e.response.reason}")
+        if e.response.status_code == 403:
+            print("   Site is blocking automated requests (bot protection)")
+        elif e.response.status_code == 404:
+            print("   Page not found - check the URL")
+        elif e.response.status_code == 500:
+            print("   Server error - site may be experiencing issues")
+        return None
+    except requests.exceptions.TooManyRedirects:
+        print(f"\n❌ Error: Too many redirects")
+        print("   Site has a redirect loop - configuration issue")
+        return None
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching {url}: {e}")
+        print(f"\n❌ Error fetching {url}: {e}")
         return None
 
 def analyze_basic_info(response):
