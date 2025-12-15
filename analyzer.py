@@ -302,6 +302,111 @@ def analyze_images(soup):
     
     return "\n".join(output)
 
+def check_accessibility(soup):
+    """Check for basic accessibility issues."""
+    output = ["\n=== ACCESSIBILITY ANALYSIS ==="]
+    issues = []
+    
+    # Check heading hierarchy
+    headings = soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+    if headings:
+        heading_levels = [int(h.name[1]) for h in headings]
+        
+        # Check if starts with H1
+        if heading_levels and heading_levels[0] != 1:
+            issues.append("⚠️  Page doesn't start with H1 (should begin with main heading)")
+        
+        # Check for skipped levels
+        for i in range(len(heading_levels) - 1):
+            if heading_levels[i+1] > heading_levels[i] + 1:
+                issues.append(f"⚠️  Heading hierarchy skip detected (H{heading_levels[i]} to H{heading_levels[i+1]})")
+                break
+    
+    # Check for alt text on images
+    images = soup.find_all('img')
+    if images:
+        images_no_alt = [img for img in images if not img.get('alt')]
+        if images_no_alt:
+            issues.append(f"❌ {len(images_no_alt)} images missing alt text (screen reader issue)")
+    
+    # Check for form labels
+    inputs = soup.find_all('input', {'type': ['text', 'email', 'password', 'tel', 'search']})
+    if inputs:
+        unlabeled = []
+        for inp in inputs:
+            inp_id = inp.get('id')
+            if inp_id:
+                label = soup.find('label', {'for': inp_id})
+                if not label:
+                    unlabeled.append(inp)
+            else:
+                # No ID, can't be labeled properly
+                unlabeled.append(inp)
+        
+        if unlabeled:
+            issues.append(f"⚠️  {len(unlabeled)} form inputs without proper labels")
+    
+    # Check for language attribute
+    html_tag = soup.find('html')
+    if html_tag and not html_tag.get('lang'):
+        issues.append("⚠️  Missing language attribute on <html> tag")
+    
+    # Check for ARIA landmarks
+    landmarks = soup.find_all(['header', 'nav', 'main', 'footer'])
+    if not landmarks:
+        issues.append("ℹ️  No semantic HTML5 landmarks found (header, nav, main, footer)")
+    
+    # Report findings
+    if issues:
+        output.extend(issues)
+    else:
+        output.append("✅ No major accessibility issues found")
+    
+    return "\n".join(output)
+
+def check_security(response, url):
+    """Check for security best practices."""
+    output = ["\n=== SECURITY ANALYSIS ==="]
+    issues = []
+    
+    # Check HTTPS
+    if not url.startswith('https://'):
+        issues.append("❌ Not using HTTPS - data transmitted insecurely")
+    else:
+        output.append("✅ Using HTTPS")
+    
+    # Check security headers
+    headers = response.headers
+    
+    # Strict-Transport-Security
+    if 'Strict-Transport-Security' not in headers:
+        issues.append("⚠️  Missing Strict-Transport-Security header (HSTS)")
+    
+    # X-Content-Type-Options
+    if 'X-Content-Type-Options' not in headers:
+        issues.append("⚠️  Missing X-Content-Type-Options header")
+    
+    # X-Frame-Options
+    if 'X-Frame-Options' not in headers:
+        issues.append("⚠️  Missing X-Frame-Options header (clickjacking protection)")
+    
+    # Content-Security-Policy
+    if 'Content-Security-Policy' not in headers:
+        issues.append("ℹ️  Missing Content-Security-Policy header (recommended)")
+    
+    # X-XSS-Protection (deprecated but still checked)
+    if 'X-XSS-Protection' not in headers:
+        issues.append("ℹ️  Missing X-XSS-Protection header (legacy browsers)")
+    
+    # Report findings
+    if issues:
+        output.extend(issues)
+    
+    if not issues or all('ℹ️' in issue for issue in issues):
+        output.append("✅ Good security header configuration")
+    
+    return "\n".join(output)
+
 def save_report(url, report_content):
     """Save analysis report to a text file."""
     # Create reports directory if it doesn't exist
@@ -354,6 +459,8 @@ if __name__ == "__main__":
         report.append(measure_performance(response))
         report.append(check_broken_links(soup, url))
         report.append(analyze_images(soup))
+        report.append(check_accessibility(soup))
+        report.append(check_security(response, url))
         
         report.append("\n" + "=" * 50)
         
